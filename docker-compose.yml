@@ -1,0 +1,136 @@
+
+services:
+
+  ## ✅ FastAPI Application
+  fastapi:
+    build:
+      context: ./fastapi_app
+    container_name: fastapi_app
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi_app:/app
+      - ./db:/app/db
+      - ./models:/app/models
+      - ./shared:/app/shared
+      - ${INPUT_DATA_PATH:-./default_input}:/app/input
+
+  ## ✅ Airflow Webserver
+  airflow-webserver:
+    image: apache/airflow:2.8.1-python3.11
+    restart: always
+    depends_on:
+      - fastapi
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - PYTHONPATH=/opt/airflow 
+      - DB_PATH=/app/db/
+      - SHARED_PATH=/opt/airflow/shared
+      - FASTAPI_URL=http://fastapi:8000
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - airflow_db:/opt/airflow 
+      - ./lead_scoring_training_pipeline:/opt/airflow/lead_scoring_training_pipeline
+      - ./lead_scoring_data_pipeline:/opt/airflow/lead_scoring_data_pipeline
+      - ./lead_scoring_inference_pipeline:/opt/airflow/lead_scoring_inference_pipeline
+      - ./shared:/opt/airflow/shared
+      - ./predictions:/opt/airflow/predictions
+      - ${INPUT_DATA_PATH:-./default_input}:/app/input
+      - ./models:/app/models
+      - ./db:/app/db
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    ports:
+      - "8080:8080"
+    command: webserver
+
+  ## ✅ Airflow Scheduler
+  airflow-scheduler:
+    image: apache/airflow:2.8.1-python3.11
+    restart: always
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - airflow_db:/opt/airflow 
+      - ./lead_scoring_training_pipeline:/opt/airflow/lead_scoring_training_pipeline
+      - ./lead_scoring_data_pipeline:/opt/airflow/lead_scoring_data_pipeline
+      - ./lead_scoring_inference_pipeline:/opt/airflow/lead_scoring_inference_pipeline
+      - ./shared:/opt/airflow/shared
+      - ./predictions:/opt/airflow/predictions
+      - ${INPUT_DATA_PATH:-./default_input}:/app/input
+      - ./models:/app/models
+      - ./db:/app/db
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    environment:
+      - PYTHONPATH=/opt/airflow 
+      - DB_PATH=/app/db/
+      - SHARED_PATH=/opt/airflow/shared
+      - FASTAPI_URL=http://fastapi:8000
+    command: scheduler
+
+  ## ✅ MLflow Tracking Server
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    restart: always
+    ports:
+      - "5050:5000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://0.0.0.0:5000
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+    command: mlflow server --host 0.0.0.0 --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlruns
+
+  ## ✅ FastAPI Inference API
+  inference-api:
+    build:
+      context: ./lead_scoring_inference_pipeline
+    restart: always
+    environment:
+      - DB_PATH=/app/db/
+      - SHARED_PATH=/opt/airflow/shared
+    volumes:
+      - ./lead_scoring_inference_pipeline:/app
+      - ./db:/app/db
+      - ./models:/app/models
+      - ./shared:/app/shared
+      - ${INPUT_DATA_PATH:-./default_input}:/app/input
+
+  ## ✅ Optional: ML Training Job Container (batch job style)
+  training:
+    build:
+      context: ./lead_scoring_training_pipeline
+    restart: "no"
+    volumes:
+      - ./lead_scoring_training_pipeline:/app
+      - ./db:/app/db
+      - ./models:/app/models
+      - ./shared:/app/shared
+      - ${INPUT_DATA_PATH:-./default_input}:/app/input
+    environment:
+      - DB_PATH=/app/db/
+      - SHARED_PATH=/opt/airflow/shared
+
+  ## ✅ Optional: Data Preprocessing Job
+  data-pipeline:
+    build:
+      context: ./lead_scoring_data_pipeline
+    restart: "no"
+    volumes:
+      - ./lead_scoring_data_pipeline:/app
+      - ./db:/app/db
+      - ./shared:/app/shared
+      - ${INPUT_DATA_PATH:-./default_input}:/app/input
+    environment:
+      - DB_PATH=/app/db/
+      - SHARED_PATH=/opt/airflow/shared
+
+volumes:
+  airflow_db:

@@ -1,0 +1,16 @@
+# Dockerfile.airflow
+FROM apache/airflow:2.8.1-python3.11
+
+USER root
+
+# Install extra dependencies
+RUN pip install --no-cache-dir \
+    mlflow \
+    pycaret \
+    lightgbm \
+    optuna \
+    scikit-learn \
+    pandas \
+    numpy
+
+USER airflow

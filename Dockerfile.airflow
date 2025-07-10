@@ -1,0 +1,24 @@
+# Dockerfile.airflow
+FROM apache/airflow:2.8.1-python3.11
+
+USER root
+
+# Install libgomp for LightGBM
+RUN apt-get update && apt-get install -y libgomp1
+
+USER airflow
+
+# Install extra dependencies
+RUN pip install --no-cache-dir \
+    mlflow==2.3.2 \
+    pycaret \
+    lightgbm \
+    optuna-integration[sklearn] \
+    scikit-learn \
+    pandas \
+    numpy \
+    requests \
+    fastapi \
+    uvicorn 
+
+USER airflow
