@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-training-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: model-training
+        image: gcr.io/docker-mlops-pipeline/training:latest
+        command: ["python", "main.py"]
+        env:
+        - name: DB_PATH
+          value: "/app/db/"
+        - name: SHARED_PATH
+          value: "/app/shared/"
+        volumeMounts:
+        - name: db-volume
+          mountPath: /app/db
+        - name: models-volume
+          mountPath: /app/models
+        - name: shared-volume
+          mountPath: /app/shared
+      restartPolicy: Never
+      volumes:
+      - name: db-volume
+        persistentVolumeClaim:
+          claimName: db-pvc
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: models-pvc
+      - name: shared-volume
+        persistentVolumeClaim:
+          claimName: shared-pvc
+  backoffLimit: 2

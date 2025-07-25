@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inference
+  template:
+    metadata:
+      labels:
+        app: inference
+    spec:
+      containers:
+      - name: inference
+        image: gcr.io/docker-mlops-pipeline/inference:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DB_PATH
+          value: /app/db/
+        volumeMounts:
+        - name: db-volume
+          mountPath: /app/db
+      volumes:
+      - name: db-volume
+        emptyDir: {}
