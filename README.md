@@ -94,8 +94,9 @@ docker-compose up --build
 1. Upload raw lead data to `/input/`.
 2. Run the `data_pipeline` container or DAG to process data.
 3. Run the `training` pipeline to build and log the model.
-4. Run the `inference` pipeline to generate predictions.
-5. View predictions via FastAPI browser endpoint.
+4. Run the 'data_pipeline' on inference data to apply the same preprocessing steps
+5. Run the `inference` pipeline to generate predictions.
+6. View predictions via FastAPI browser endpoint.
 
 ---
 
